@@ -1,0 +1,320 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  email         String   @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  role          UserRole @default(CLERK)
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  createdApplications Application[] @relation("CreatedBy")
+  reviewedApplications Application[] @relation("ReviewedBy")
+  auditLogs           AuditLog[]
+  consentRecords      ConsentRecord[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  CLERK
+  REVIEWER
+  VIEWER
+}
+
+// Indigent Application
+model Application {
+  id                String            @id @default(auto()) @map("_id") @db.ObjectId
+  applicationNumber String            @unique
+  status            ApplicationStatus @default(PENDING)
+  priority          ApplicationPriority @default(NORMAL)
+  
+  // Applicant Information
+  idNumber          String
+  firstName         String
+  lastName          String
+  dateOfBirth       DateTime
+  gender            Gender
+  contactNumber     String
+  email             String?
+  address           String
+  municipality      String
+  ward              String?
+  
+  // Household Information
+  householdSize     Int
+  monthlyIncome     Float
+  monthlyExpenses   Float
+  dependents        Int
+  
+  // Application Details
+  applicationDate   DateTime @default(now())
+  reviewDate        DateTime?
+  approvalDate      DateTime?
+  expiryDate        DateTime?
+  rejectionReason   String?
+  notes             String?
+  
+  // Means Test Results
+  meansTestScore    Float?
+  meansTestStatus   MeansTestStatus?
+  verificationStatus VerificationStatus @default(PENDING)
+  
+  // Relations
+  createdById       String   @db.ObjectId
+  createdBy         User   @relation("CreatedBy", fields: [createdById], references: [id])
+  reviewedById      String?  @db.ObjectId
+  reviewedBy        User?  @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  
+  documents         Document[]
+  benefits          Benefit[]
+  householdMembers  HouseholdMember[]
+  auditLogs         AuditLog[]
+  consentRecords    ConsentRecord[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([idNumber])
+  @@index([status])
+  @@index([applicationDate])
+  @@map("applications")
+}
+
+enum ApplicationStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
+  SUSPENDED
+}
+
+enum ApplicationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum MeansTestStatus {
+  PASSED
+  FAILED
+  PENDING
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  FAILED
+  MANUAL_REVIEW
+}
+
+// Household Members
+model HouseholdMember {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  applicationId String   @db.ObjectId
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  idNumber      String
+  firstName     String
+  lastName      String
+  dateOfBirth   DateTime
+  relationship  String
+  isDependent   Boolean  @default(false)
+  monthlyIncome Float?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([applicationId])
+  @@map("household_members")
+}
+
+// Documents
+model Document {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  applicationId String   @db.ObjectId
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  fileName      String
+  originalName  String
+  fileType      String
+  fileSize      Int
+  filePath      String
+  documentType  DocumentType
+  uploadedBy    String
+  verified      Boolean  @default(false)
+  verifiedAt    DateTime?
+  verifiedBy    String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([applicationId])
+  @@index([documentType])
+  @@map("documents")
+}
+
+enum DocumentType {
+  ID_DOCUMENT
+  PROOF_OF_INCOME
+  PROOF_OF_EXPENSES
+  BANK_STATEMENT
+  UTILITY_BILL
+  AFFIDAVIT
+  OTHER
+}
+
+// Benefits
+model Benefit {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  applicationId String   @db.ObjectId
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  benefitType   BenefitType
+  amount        Float
+  startDate     DateTime
+  endDate       DateTime?
+  status        BenefitStatus @default(ACTIVE)
+  paymentMethod String?
+  notes         String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([applicationId])
+  @@index([benefitType])
+  @@index([status])
+  @@map("benefits")
+}
+
+enum BenefitType {
+  WATER_REBATE
+  ELECTRICITY_REBATE
+  RATES_REBATE
+  WASTE_REMOVAL_REBATE
+  TRANSPORT_SUBSIDY
+  OTHER
+}
+
+enum BenefitStatus {
+  ACTIVE
+  SUSPENDED
+  TERMINATED
+  EXPIRED
+}
+
+// POPIA Compliance - Consent Management
+model ConsentRecord {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  applicationId String?  @db.ObjectId
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  userId        String?  @db.ObjectId
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  consentType   ConsentType
+  granted       Boolean
+  grantedAt     DateTime?
+  revokedAt     DateTime?
+  purpose       String
+  legalBasis    String
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([applicationId])
+  @@index([userId])
+  @@map("consent_records")
+}
+
+enum ConsentType {
+  DATA_PROCESSING
+  DATA_SHARING
+  MARKETING
+  RESEARCH
+}
+
+// Audit Logging
+model AuditLog {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String?  @db.ObjectId
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  applicationId String?  @db.ObjectId
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  
+  action        String
+  entityType    String
+  entityId      String
+  changes       Json?
+  ipAddress     String?
+  userAgent     String?
+  
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([applicationId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// Integration Logs
+model IntegrationLog {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  integrationType String
+  endpoint      String
+  method        String
+  requestData   Json?
+  responseData  Json?
+  statusCode    Int
+  success       Boolean
+  errorMessage  String?
+  duration      Int?
+  
+  createdAt     DateTime @default(now())
+
+  @@index([integrationType])
+  @@index([createdAt])
+  @@map("integration_logs")
+}
+
+// System Configuration
+model SystemConfig {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  key           String   @unique
+  value         String
+  description   String?
+  category      String?
+  isPublic      Boolean  @default(false)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("system_configs")
+}
+
