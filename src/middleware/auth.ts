@@ -34,7 +34,7 @@ export const authenticate = (
     };
 
     req.user = decoded;
-    next();
+    return next();
   } catch (error) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
@@ -50,7 +50,7 @@ export const authorize = (...allowedRoles: UserRole[]) => {
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
 
-    next();
+    return next();
   };
 };
 

@@ -21,10 +21,10 @@ export const documentController = {
         orderBy: { createdAt: 'desc' },
       });
 
-      res.json(documents);
+      return res.json(documents);
     } catch (error) {
       logger.error('Get documents error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -40,10 +40,10 @@ export const documentController = {
         return res.status(404).json({ error: 'Document not found' });
       }
 
-      res.json(document);
+      return res.json(document);
     } catch (error) {
       logger.error('Get document error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -74,13 +74,13 @@ export const documentController = {
         },
       });
 
-      res.status(201).json(document);
+      return res.status(201).json(document);
     } catch (error) {
       logger.error('Upload document error:', error);
       if (req.file) {
         fs.unlinkSync(req.file.path);
       }
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -102,10 +102,10 @@ export const documentController = {
         return res.status(404).json({ error: 'File not found on disk' });
       }
 
-      res.download(filePath, document.originalName);
+      return res.download(filePath, document.originalName);
     } catch (error) {
       logger.error('Download document error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -123,10 +123,10 @@ export const documentController = {
         },
       });
 
-      res.json(document);
+      return res.json(document);
     } catch (error) {
       logger.error('Verify document error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -152,10 +152,10 @@ export const documentController = {
         where: { id },
       });
 
-      res.status(204).send();
+      return res.status(204).send();
     } catch (error) {
       logger.error('Delete document error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 };

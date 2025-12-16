@@ -57,7 +57,7 @@ export const applicationController = {
         prisma.application.count({ where }),
       ]);
 
-      res.json({
+      return res.json({
         data: applications,
         pagination: {
           page: pageNum,
@@ -68,7 +68,7 @@ export const applicationController = {
       });
     } catch (error) {
       logger.error('Get applications error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -95,10 +95,10 @@ export const applicationController = {
         return res.status(404).json({ error: 'Application not found' });
       }
 
-      res.json(application);
+      return res.json(application);
     } catch (error) {
       logger.error('Get application error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -123,10 +123,10 @@ export const applicationController = {
         },
       });
 
-      res.status(201).json(application);
+      return res.status(201).json(application);
     } catch (error) {
       logger.error('Create application error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -155,10 +155,10 @@ export const applicationController = {
         },
       });
 
-      res.json(updated);
+      return res.json(updated);
     } catch (error) {
       logger.error('Update application error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -194,10 +194,10 @@ export const applicationController = {
         data: { status: 'UNDER_REVIEW' },
       });
 
-      res.json(updated);
+      return res.json(updated);
     } catch (error) {
       logger.error('Submit for review error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -238,10 +238,10 @@ export const applicationController = {
         data: updateData,
       });
 
-      res.json(updated);
+      return res.json(updated);
     } catch (error) {
       logger.error('Review application error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -268,13 +268,13 @@ export const applicationController = {
         },
       });
 
-      res.json({
+      return res.json({
         application: updated,
         meansTest: meansTestResult,
       });
     } catch (error) {
       logger.error('Means test error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -286,10 +286,10 @@ export const applicationController = {
         where: { id },
       });
 
-      res.status(204).send();
+      return res.status(204).send();
     } catch (error) {
       logger.error('Delete application error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 };

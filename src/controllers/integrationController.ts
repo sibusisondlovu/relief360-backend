@@ -16,8 +16,8 @@ export const integrationController = {
 
       // Simulate ID verification API call
       // In production, this would call the actual ID verification service
-      const apiUrl = process.env.ID_VERIFICATION_API_URL;
-      const apiKey = process.env.ID_VERIFICATION_API_KEY;
+      // const _apiUrl = process.env.ID_VERIFICATION_API_URL;
+      // const _apiKey = process.env.ID_VERIFICATION_API_KEY;
 
       let verificationResult;
       let success = false;
@@ -56,10 +56,10 @@ export const integrationController = {
         },
       });
 
-      res.json(verificationResult);
+      return res.json(verificationResult);
     } catch (error) {
       logger.error('ID verification error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -70,8 +70,8 @@ export const integrationController = {
       const startTime = Date.now();
 
       // Simulate municipal system sync
-      const apiUrl = process.env.MUNICIPAL_API_URL;
-      const apiKey = process.env.MUNICIPAL_API_KEY;
+      // const _apiUrl = process.env.MUNICIPAL_API_URL;
+      // const _apiKey = process.env.MUNICIPAL_API_KEY;
 
       let syncResult;
       let success = false;
@@ -107,10 +107,10 @@ export const integrationController = {
         },
       });
 
-      res.json(syncResult);
+      return res.json(syncResult);
     } catch (error) {
       logger.error('Municipal sync error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 

@@ -5,7 +5,7 @@ import { logger } from '../utils/logger';
 import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
 export const reportController = {
-  async getDashboard(req: AuthRequest, res: Response) {
+  async getDashboard(_req: AuthRequest, res: Response) {
     try {
       const now = new Date();
       const startOfCurrentMonth = startOfMonth(now);
@@ -57,7 +57,7 @@ export const reportController = {
           ? ((currentMonthApplications - lastMonthApplications) / lastMonthApplications) * 100
           : 0;
 
-      res.json({
+      return res.json({
         applications: {
           total: totalApplications,
           pending: pendingApplications,
@@ -75,7 +75,7 @@ export const reportController = {
       });
     } catch (error) {
       logger.error('Get dashboard error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -110,10 +110,10 @@ export const reportController = {
         orderBy: { applicationDate: 'desc' },
       });
 
-      res.json(applications);
+      return res.json(applications);
     } catch (error) {
       logger.error('Get application report error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -152,7 +152,7 @@ export const reportController = {
         0
       );
 
-      res.json({
+      return res.json({
         benefits,
         summary: {
           total: benefits.length,
@@ -161,13 +161,13 @@ export const reportController = {
       });
     } catch (error) {
       logger.error('Get benefit report error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
   async getStatistics(req: AuthRequest, res: Response) {
     try {
-      const { period = 'month' } = req.query;
+      const { period: _period = 'month' } = req.query;
 
       // Get status distribution
       const statusDistribution = await prisma.application.groupBy({
@@ -231,19 +231,19 @@ export const reportController = {
         ],
       });
 
-      const trends = (monthlyTrends as any[]).map((item: any) => ({
+      const trends = (monthlyTrends as unknown as any[]).map((item: any) => ({
         month: item.month,
         count: item.count,
       }));
 
-      res.json({
+      return res.json({
         statusDistribution,
         benefitTypeDistribution,
         monthlyTrends: trends,
       });
     } catch (error) {
       logger.error('Get statistics error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -267,16 +267,16 @@ export const reportController = {
           res.setHeader('Content-Type', 'text/csv');
           res.setHeader('Content-Disposition', 'attachment; filename=applications.csv');
           // CSV conversion would go here
-          res.json(applications);
+          return res.json(applications);
         } else {
-          res.json(applications);
+          return res.json(applications);
         }
       } else {
-        res.status(400).json({ error: 'Invalid export type' });
+        return res.status(400).json({ error: 'Invalid export type' });
       }
     } catch (error) {
       logger.error('Export data error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 };

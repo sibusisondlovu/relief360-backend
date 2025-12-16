@@ -27,10 +27,10 @@ export const benefitController = {
         orderBy: { createdAt: 'desc' },
       });
 
-      res.json(benefits);
+      return res.json(benefits);
     } catch (error) {
       logger.error('Get benefits error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -49,10 +49,10 @@ export const benefitController = {
         return res.status(404).json({ error: 'Benefit not found' });
       }
 
-      res.json(benefit);
+      return res.json(benefit);
     } catch (error) {
       logger.error('Get benefit error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -84,10 +84,10 @@ export const benefitController = {
         },
       });
 
-      res.status(201).json(benefit);
+      return res.status(201).json(benefit);
     } catch (error) {
       logger.error('Create benefit error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -105,10 +105,10 @@ export const benefitController = {
         },
       });
 
-      res.json(benefit);
+      return res.json(benefit);
     } catch (error) {
       logger.error('Update benefit error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -120,10 +120,10 @@ export const benefitController = {
         where: { id },
       });
 
-      res.status(204).send();
+      return res.status(204).send();
     } catch (error) {
       logger.error('Delete benefit error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 };

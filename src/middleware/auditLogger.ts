@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthRequest } from './auth';
 import prisma from '../utils/db';
 
@@ -12,10 +12,10 @@ export const auditLogger = async (
   }
 
   const originalSend = res.send;
-  const startTime = Date.now();
+
 
   res.send = function (body) {
-    const duration = Date.now() - startTime;
+
 
     // Log asynchronously to avoid blocking response
     setImmediate(async () => {

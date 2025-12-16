@@ -11,7 +11,7 @@ const generateToken = (user: { id: string; email: string; role: string }) => {
   return jwt.sign(
     { id: user.id, email: user.email, role: user.role },
     JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
+    { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
   );
 };
 
@@ -59,7 +59,7 @@ export const authController = {
 
       const token = generateToken(user);
 
-      res.json({
+      return res.json({
         token,
         user: {
           id: user.id,
@@ -71,7 +71,7 @@ export const authController = {
       });
     } catch (error) {
       logger.error('Login error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -101,7 +101,7 @@ export const authController = {
 
       const token = generateToken(user);
 
-      res.status(201).json({
+      return res.status(201).json({
         token,
         user: {
           id: user.id,
@@ -113,7 +113,7 @@ export const authController = {
       });
     } catch (error) {
       logger.error('Registration error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -140,9 +140,9 @@ export const authController = {
 
       const newToken = generateToken(user);
 
-      res.json({ token: newToken });
+      return res.json({ token: newToken });
     } catch (error) {
-      res.status(401).json({ error: 'Invalid token' });
+      return res.status(401).json({ error: 'Invalid token' });
     }
   },
 };

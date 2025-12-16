@@ -17,10 +17,10 @@ export const consentController = {
         orderBy: { createdAt: 'desc' },
       });
 
-      res.json(consents);
+      return res.json(consents);
     } catch (error) {
       logger.error('Get consents error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -36,10 +36,10 @@ export const consentController = {
         return res.status(404).json({ error: 'Consent record not found' });
       }
 
-      res.json(consent);
+      return res.json(consent);
     } catch (error) {
       logger.error('Get consent error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -59,10 +59,10 @@ export const consentController = {
         },
       });
 
-      res.status(201).json(consent);
+      return res.status(201).json(consent);
     } catch (error) {
       logger.error('Create consent error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -78,10 +78,10 @@ export const consentController = {
         },
       });
 
-      res.json(consent);
+      return res.json(consent);
     } catch (error) {
       logger.error('Revoke consent error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 };

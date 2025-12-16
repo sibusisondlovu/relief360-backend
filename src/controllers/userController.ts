@@ -4,7 +4,7 @@ import prisma from '../utils/db';
 import { logger } from '../utils/logger';
 
 export const userController = {
-  async getAll(req: AuthRequest, res: Response) {
+  async getAll(_req: AuthRequest, res: Response) {
     try {
       const users = await prisma.user.findMany({
         select: {
@@ -20,10 +20,10 @@ export const userController = {
         orderBy: { createdAt: 'desc' },
       });
 
-      res.json(users);
+      return res.json(users);
     } catch (error) {
       logger.error('Get users error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -49,10 +49,10 @@ export const userController = {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      res.json(user);
+      return res.json(user);
     } catch (error) {
       logger.error('Get user error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -81,10 +81,10 @@ export const userController = {
         },
       });
 
-      res.json(user);
+      return res.json(user);
     } catch (error) {
       logger.error('Update user error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -101,10 +101,10 @@ export const userController = {
         where: { id },
       });
 
-      res.status(204).send();
+      return res.status(204).send();
     } catch (error) {
       logger.error('Delete user error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   },
 };
