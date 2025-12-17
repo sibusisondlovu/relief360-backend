@@ -22,6 +22,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Health check (Moved to top for debugging)
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Security middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
@@ -43,10 +48,7 @@ app.use(rateLimiter);
 // Audit logging
 app.use(auditLogger);
 
-// Health check
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+
 
 // API Routes
 app.use('/api/auth', authRoutes);
