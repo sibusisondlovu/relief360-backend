@@ -15,13 +15,13 @@ export NVM_DIR="$HOME/.nvm"
 nvm use 18
 
 # Check if MongoDB is running
-if ! pgrep -x mongod > /dev/null; then
-    echo "⚠️  MongoDB is not running. Starting MongoDB..."
-    ~/mongodb/bin/mongod --dbpath ~/mongodb-data --logpath ~/mongodb-logs/mongo.log --replSet rs0 --fork
-    sleep 3
-    echo "✅ MongoDB started"
-    echo ""
-fi
+# if ! pgrep -x mongod > /dev/null; then
+#     echo "⚠️  MongoDB is not running. Starting MongoDB..."
+#     ~/mongodb/bin/mongod --dbpath ~/mongodb-data --logpath ~/mongodb-logs/mongo.log --replSet rs0 --fork
+#     sleep 3
+#     echo "✅ MongoDB started"
+#     echo ""
+# fi
 
 # Check if .env exists
 if [ ! -f .env ]; then
