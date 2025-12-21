@@ -1,4 +1,4 @@
-import { Application, HouseholdMember } from '@prisma/client';
+import { Application, HouseholdMember } from '../models/types';
 
 interface MeansTestResult {
   score: number;

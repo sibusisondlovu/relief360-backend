@@ -1,33 +1,26 @@
-import { Router } from 'express';
-import { body } from 'express-validator';
+import express from 'express';
 import { benefitController } from '../controllers/benefitController';
 import { authenticate, authorize } from '../middleware/auth';
-import { validate } from '../middleware/validator';
+import { UserRole } from '../models/types';
 
-const router = Router();
+const router = express.Router();
 router.use(authenticate);
 
 router.get('/', benefitController.getAll);
 router.get('/:id', benefitController.getById);
 router.post(
   '/',
-  authorize('ADMIN', 'MANAGER'),
-  validate([
-    body('applicationId').notEmpty().isUUID(),
-    body('benefitType').isIn(['WATER_REBATE', 'ELECTRICITY_REBATE', 'RATES_REBATE', 'WASTE_REMOVAL_REBATE', 'TRANSPORT_SUBSIDY', 'OTHER']),
-    body('amount').isFloat({ min: 0 }),
-    body('startDate').isISO8601(),
-  ]),
+  authorize(UserRole.ADMIN, UserRole.MANAGER),
   benefitController.create
 );
 router.put(
   '/:id',
-  authorize('ADMIN', 'MANAGER'),
+  authorize(UserRole.ADMIN, UserRole.MANAGER),
   benefitController.update
 );
 router.delete(
   '/:id',
-  authorize('ADMIN', 'MANAGER'),
+  authorize(UserRole.ADMIN, UserRole.MANAGER),
   benefitController.delete
 );
 

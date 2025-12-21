@@ -3,6 +3,7 @@ import { body, query } from 'express-validator';
 import { applicationController } from '../controllers/applicationController';
 import { authenticate, authorize } from '../middleware/auth';
 import { validate } from '../middleware/validator';
+import { UserRole } from '../models/types';
 
 const router = Router();
 
@@ -45,21 +46,21 @@ router.post(
 // Update application
 router.put(
   '/:id',
-  authorize('ADMIN', 'MANAGER', 'CLERK'),
+  authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.CLERK),
   applicationController.update
 );
 
 // Submit for review
 router.post(
   '/:id/submit',
-  authorize('ADMIN', 'MANAGER', 'CLERK'),
+  authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.CLERK),
   applicationController.submitForReview
 );
 
 // Review application
 router.post(
   '/:id/review',
-  authorize('ADMIN', 'MANAGER', 'REVIEWER'),
+  authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.REVIEWER),
   validate([
     body('status').isIn(['APPROVED', 'REJECTED']),
     body('notes').optional(),
@@ -70,14 +71,14 @@ router.post(
 // Run means test
 router.post(
   '/:id/means-test',
-  authorize('ADMIN', 'MANAGER', 'REVIEWER'),
+  authorize(UserRole.ADMIN, UserRole.MANAGER, UserRole.REVIEWER),
   applicationController.runMeansTest
 );
 
 // Delete application (soft delete)
 router.delete(
   '/:id',
-  authorize('ADMIN', 'MANAGER'),
+  authorize(UserRole.ADMIN, UserRole.MANAGER),
   applicationController.delete
 );
 

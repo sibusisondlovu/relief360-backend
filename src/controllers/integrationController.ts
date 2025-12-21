@@ -1,7 +1,8 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import prisma from '../utils/db';
+import { getDb } from '../utils/mongo';
 import { logger } from '../utils/logger';
+import { IntegrationLog } from '../models/types';
 
 export const integrationController = {
   async verifyId(req: AuthRequest, res: Response) {
@@ -42,18 +43,17 @@ export const integrationController = {
       const duration = Date.now() - startTime;
 
       // Log integration call
-      await prisma.integrationLog.create({
-        data: {
-          integrationType: 'ID_VERIFICATION',
-          endpoint: '/verify-id',
-          method: 'POST',
-          requestData: { idNumber },
-          responseData: verificationResult,
-          statusCode: success ? 200 : 400,
-          success,
-          errorMessage,
-          duration,
-        },
+      await getDb().collection<IntegrationLog>('integration_logs').insertOne({
+        integrationType: 'ID_VERIFICATION',
+        endpoint: '/verify-id',
+        method: 'POST',
+        requestData: { idNumber },
+        responseData: verificationResult,
+        statusCode: success ? 200 : 400,
+        success,
+        errorMessage,
+        duration,
+        createdAt: new Date(),
       });
 
       return res.json(verificationResult);
@@ -93,18 +93,17 @@ export const integrationController = {
       const duration = Date.now() - startTime;
 
       // Log integration call
-      await prisma.integrationLog.create({
-        data: {
-          integrationType: 'MUNICIPAL_SYNC',
-          endpoint: '/municipal-sync',
-          method: 'POST',
-          requestData: { applicationId },
-          responseData: syncResult,
-          statusCode: success ? 200 : 400,
-          success,
-          errorMessage,
-          duration,
-        },
+      await getDb().collection<IntegrationLog>('integration_logs').insertOne({
+        integrationType: 'MUNICIPAL_SYNC',
+        endpoint: '/municipal-sync',
+        method: 'POST',
+        requestData: { applicationId },
+        responseData: syncResult,
+        statusCode: success ? 200 : 400,
+        success,
+        errorMessage,
+        duration,
+        createdAt: new Date(),
       });
 
       return res.json(syncResult);
@@ -121,11 +120,10 @@ export const integrationController = {
       const where: any = {};
       if (integrationType) where.integrationType = integrationType;
 
-      const logs = await prisma.integrationLog.findMany({
-        where,
-        take: parseInt(limit as string),
-        orderBy: { createdAt: 'desc' },
-      });
+      const logs = await getDb().collection<IntegrationLog>('integration_logs').find(where, {
+        limit: parseInt(limit as string),
+        sort: { createdAt: -1 }
+      }).toArray();
 
       res.json(logs);
     } catch (error) {

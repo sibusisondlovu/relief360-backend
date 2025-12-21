@@ -1,20 +1,15 @@
-import prisma from '../utils/db';
+import { getDb } from '../utils/mongo';
+import { Application } from '../models/types';
 
 export async function generateApplicationNumber(): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `IND${year}`;
 
   // Get the last application number for this year
-  const lastApplication = await prisma.application.findFirst({
-    where: {
-      applicationNumber: {
-        startsWith: prefix,
-      },
-    },
-    orderBy: {
-      applicationNumber: 'desc',
-    },
-  });
+  const lastApplication = await getDb().collection<Application>('applications').findOne(
+    { applicationNumber: { $regex: `^${prefix}` } },
+    { sort: { applicationNumber: -1 } }
+  );
 
   let sequence = 1;
   if (lastApplication) {

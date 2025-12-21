@@ -1,26 +1,20 @@
-import { Router } from 'express';
-import { body } from 'express-validator';
+import express from 'express';
 import { userController } from '../controllers/userController';
 import { authenticate, authorize } from '../middleware/auth';
-import { validate } from '../middleware/validator';
+import { UserRole } from '../models/types';
 
-const router = Router();
+const router = express.Router();
 router.use(authenticate);
 
-router.get('/', authorize('ADMIN', 'MANAGER'), userController.getAll);
+router.get('/', authorize(UserRole.ADMIN, UserRole.MANAGER), userController.getAll);
 router.get('/:id', userController.getById);
-router.put(
-  '/:id',
-  authorize('ADMIN', 'MANAGER'),
-  validate([
-    body('firstName').optional().notEmpty(),
-    body('lastName').optional().notEmpty(),
-    body('role').optional().isIn(['ADMIN', 'MANAGER', 'CLERK', 'REVIEWER', 'VIEWER']),
-    body('isActive').optional().isBoolean(),
-  ]),
-  userController.update
+router.post('/',
+  authorize(UserRole.ADMIN, UserRole.MANAGER),
+  userController.create
 );
-router.delete('/:id', authorize('ADMIN'), userController.delete);
+router.put('/:id', userController.update);
+router.post('/:id/change-password', userController.changePassword);
+router.put('/:id/toggle-status', userController.toggleStatus);
+router.delete('/:id', authorize(UserRole.ADMIN), userController.delete);
 
 export default router;
-

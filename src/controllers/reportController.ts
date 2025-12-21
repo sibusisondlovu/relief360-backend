@@ -1,8 +1,10 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import prisma from '../utils/db';
+import { getDb } from '../utils/mongo';
 import { logger } from '../utils/logger';
 import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { Application, Benefit } from '../models/types';
+
 
 export const reportController = {
   async getDashboard(_req: AuthRequest, res: Response) {
@@ -22,35 +24,33 @@ export const reportController = {
         lastMonthApplications,
         totalBenefits,
         activeBenefits,
-        totalAmount,
+        totalAmountResult,
       ] = await Promise.all([
-        prisma.application.count(),
-        prisma.application.count({ where: { status: 'PENDING' } }),
-        prisma.application.count({ where: { status: 'APPROVED' } }),
-        prisma.application.count({ where: { status: 'REJECTED' } }),
-        prisma.application.count({
-          where: {
-            applicationDate: {
-              gte: startOfCurrentMonth,
-              lte: endOfCurrentMonth,
-            },
+        getDb().collection('applications').countDocuments(),
+        getDb().collection('applications').countDocuments({ status: 'PENDING' }),
+        getDb().collection('applications').countDocuments({ status: 'APPROVED' }),
+        getDb().collection('applications').countDocuments({ status: 'REJECTED' }),
+        getDb().collection('applications').countDocuments({
+          applicationDate: {
+            $gte: startOfCurrentMonth,
+            $lte: endOfCurrentMonth,
           },
         }),
-        prisma.application.count({
-          where: {
-            applicationDate: {
-              gte: startOfLastMonth,
-              lte: endOfLastMonth,
-            },
+        getDb().collection('applications').countDocuments({
+          applicationDate: {
+            $gte: startOfLastMonth,
+            $lte: endOfLastMonth,
           },
         }),
-        prisma.benefit.count(),
-        prisma.benefit.count({ where: { status: 'ACTIVE' } }),
-        prisma.benefit.aggregate({
-          where: { status: 'ACTIVE' },
-          _sum: { amount: true },
-        }),
+        getDb().collection('benefits').countDocuments(),
+        getDb().collection('benefits').countDocuments({ status: 'ACTIVE' }),
+        getDb().collection('benefits').aggregate([
+          { $match: { status: 'ACTIVE' } },
+          { $group: { _id: null, sum: { $sum: '$amount' } } }
+        ]).toArray(),
       ]);
+
+      const totalAmount = totalAmountResult.length > 0 ? totalAmountResult[0].sum : 0;
 
       const applicationGrowth =
         lastMonthApplications > 0
@@ -70,7 +70,7 @@ export const reportController = {
         benefits: {
           total: totalBenefits,
           active: activeBenefits,
-          totalAmount: totalAmount._sum.amount || 0,
+          totalAmount: totalAmount || 0,
         },
       });
     } catch (error) {
@@ -87,28 +87,50 @@ export const reportController = {
 
       if (startDate || endDate) {
         where.applicationDate = {};
-        if (startDate) where.applicationDate.gte = new Date(startDate as string);
-        if (endDate) where.applicationDate.lte = new Date(endDate as string);
+        if (startDate) where.applicationDate.$gte = new Date(startDate as string);
+        if (endDate) where.applicationDate.$lte = new Date(endDate as string);
       }
 
       if (status) where.status = status;
       if (municipality) where.municipality = municipality;
 
-      const applications = await prisma.application.findMany({
-        where,
-        include: {
-          createdBy: {
-            select: { firstName: true, lastName: true },
-          },
-          reviewedBy: {
-            select: { firstName: true, lastName: true },
-          },
-          _count: {
-            select: { documents: true, benefits: true },
-          },
+      const applications = await getDb().collection<Application>('applications').aggregate([
+        { $match: where },
+        { $sort: { applicationDate: -1 } },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'createdById',
+            foreignField: '_id',
+            as: 'createdBy'
+          }
         },
-        orderBy: { applicationDate: 'desc' },
-      });
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'reviewedById',
+            foreignField: '_id',
+            as: 'reviewedBy'
+          }
+        },
+        { $unwind: { path: '$createdBy', preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: '$reviewedBy', preserveNullAndEmptyArrays: true } },
+        // Simplified structure for report
+        {
+          $project: {
+            applicationNumber: 1,
+            applicationDate: 1,
+            status: 1,
+            firstName: 1,
+            lastName: 1,
+            idNumber: 1,
+            municipality: 1,
+            ward: 1,
+            createdBy: { firstName: 1, lastName: 1 },
+            reviewedBy: { firstName: 1, lastName: 1 },
+          }
+        }
+      ]).toArray();
 
       return res.json(applications);
     } catch (error) {
@@ -125,27 +147,41 @@ export const reportController = {
 
       if (startDate || endDate) {
         where.startDate = {};
-        if (startDate) where.startDate.gte = new Date(startDate as string);
-        if (endDate) where.startDate.lte = new Date(endDate as string);
+        if (startDate) where.startDate.$gte = new Date(startDate as string);
+        if (endDate) where.startDate.$lte = new Date(endDate as string);
       }
 
       if (status) where.status = status;
       if (benefitType) where.benefitType = benefitType;
 
-      const benefits = await prisma.benefit.findMany({
-        where,
-        include: {
-          application: {
-            select: {
-              applicationNumber: true,
-              firstName: true,
-              lastName: true,
-              idNumber: true,
-            },
-          },
+      const benefits = await getDb().collection<Benefit>('benefits').aggregate([
+        { $match: where },
+        { $sort: { startDate: -1 } },
+        {
+          $lookup: {
+            from: 'applications',
+            localField: 'applicationId',
+            foreignField: '_id',
+            as: 'application'
+          }
         },
-        orderBy: { startDate: 'desc' },
-      });
+        { $unwind: '$application' },
+        {
+          $project: {
+            benefitType: 1,
+            amount: 1,
+            status: 1,
+            startDate: 1,
+            endDate: 1,
+            application: {
+              applicationNumber: 1,
+              firstName: 1,
+              lastName: 1,
+              idNumber: 1
+            }
+          }
+        }
+      ]).toArray();
 
       const totalAmount = benefits.reduce(
         (sum, benefit) => sum + Number(benefit.amount),
@@ -165,81 +201,78 @@ export const reportController = {
     }
   },
 
-  async getStatistics(req: AuthRequest, res: Response) {
+  async getStatistics(_req: AuthRequest, res: Response) {
     try {
-      const { period: _period = 'month' } = req.query;
-
       // Get status distribution
-      const statusDistribution = await prisma.application.groupBy({
-        by: ['status'],
-        _count: { id: true },
-      });
+      const statusDistribution = await getDb().collection('applications').aggregate([
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ]).toArray();
 
       // Get benefit type distribution
-      const benefitTypeDistribution = await prisma.benefit.groupBy({
-        by: ['benefitType'],
-        _count: { id: true },
-        _sum: { amount: true },
-      });
+      const benefitTypeDistribution = await getDb().collection('benefits').aggregate([
+        {
+          $group: {
+            _id: '$benefitType',
+            count: { $sum: 1 },
+            totalAmount: { $sum: '$amount' }
+          }
+        }
+      ]).toArray();
 
       // Get monthly trends (MongoDB aggregation)
       const twelveMonthsAgo = new Date();
       twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
 
-      const monthlyTrends = await prisma.application.aggregateRaw({
-        pipeline: [
-          {
-            $match: {
-              applicationDate: {
-                $gte: twelveMonthsAgo,
-              },
+      const monthlyTrends = await getDb().collection('applications').aggregate([
+        {
+          $match: {
+            applicationDate: {
+              $gte: twelveMonthsAgo,
             },
           },
-          {
-            $group: {
-              _id: {
-                year: { $year: '$applicationDate' },
-                month: { $month: '$applicationDate' },
-              },
-              count: { $sum: 1 },
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$applicationDate' },
+              month: { $month: '$applicationDate' },
             },
+            count: { $sum: 1 },
           },
-          {
-            $sort: {
-              '_id.year': 1,
-              '_id.month': 1,
-            },
+        },
+        {
+          $sort: {
+            '_id.year': 1,
+            '_id.month': 1,
           },
-          {
-            $project: {
-              _id: 0,
-              month: {
-                $dateToString: {
-                  format: '%Y-%m',
-                  date: {
-                    $dateFromParts: {
-                      year: '$_id.year',
-                      month: '$_id.month',
-                      day: 1,
-                    },
+        },
+        {
+          $project: {
+            _id: 0,
+            month: {
+              $dateToString: {
+                format: '%Y-%m',
+                date: {
+                  $dateFromParts: {
+                    year: '$_id.year',
+                    month: '$_id.month',
+                    day: 1,
                   },
                 },
               },
-              count: 1,
             },
+            count: 1,
           },
-        ],
-      });
-
-      const trends = (monthlyTrends as unknown as any[]).map((item: any) => ({
-        month: item.month,
-        count: item.count,
-      }));
+        },
+      ]).toArray();
 
       return res.json({
-        statusDistribution,
+        statusDistribution: statusDistribution.reduce((acc: any, curr) => {
+          acc[curr._id] = curr.count;
+          return acc;
+        }, {}),
         benefitTypeDistribution,
-        monthlyTrends: trends,
+        monthlyTrends,
       });
     } catch (error) {
       logger.error('Get statistics error:', error);
@@ -252,24 +285,70 @@ export const reportController = {
       const { type, format = 'json' } = req.query;
 
       if (type === 'applications') {
-        const applications = await prisma.application.findMany({
-          include: {
-            createdBy: { select: { firstName: true, lastName: true } },
-            reviewedBy: { select: { firstName: true, lastName: true } },
-            documents: true,
-            benefits: true,
-            householdMembers: true,
+        const applications = await getDb().collection('applications').aggregate([
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'createdById',
+              foreignField: '_id',
+              as: 'createdBy'
+            }
           },
-        });
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'reviewedById',
+              foreignField: '_id',
+              as: 'reviewedBy'
+            }
+          },
+          { $unwind: { path: '$createdBy', preserveNullAndEmptyArrays: true } },
+          { $unwind: { path: '$reviewedBy', preserveNullAndEmptyArrays: true } },
+          {
+            $lookup: {
+              from: 'documents',
+              localField: '_id',
+              foreignField: 'applicationId',
+              as: 'documents'
+            }
+          },
+          {
+            $lookup: {
+              from: 'benefits',
+              localField: '_id',
+              foreignField: 'applicationId',
+              as: 'benefits'
+            }
+          },
+          {
+            $lookup: {
+              from: 'household_members',
+              localField: '_id',
+              foreignField: 'applicationId',
+              as: 'householdMembers'
+            }
+          }
+        ]).toArray();
+
+        // Transform IDs
+        const transformedApplications = applications.map(app => ({
+          ...app,
+          id: app._id.toString(),
+          _id: undefined,
+          createdById: app.createdById?.toString(),
+          reviewedById: app.reviewedById?.toString(),
+          createdBy: app.createdBy ? { ...app.createdBy, _id: undefined, id: app.createdBy._id.toString() } : null,
+          reviewedBy: app.reviewedBy ? { ...app.reviewedBy, _id: undefined, id: app.reviewedBy._id.toString() } : null,
+        }));
 
         if (format === 'csv') {
           // Convert to CSV (simplified)
           res.setHeader('Content-Type', 'text/csv');
           res.setHeader('Content-Disposition', 'attachment; filename=applications.csv');
           // CSV conversion would go here
-          return res.json(applications);
+          return res.json(transformedApplications);
         } else {
-          return res.json(applications);
+          return res.json(transformedApplications);
         }
       } else {
         return res.status(400).json({ error: 'Invalid export type' });

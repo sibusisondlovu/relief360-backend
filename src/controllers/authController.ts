@@ -1,15 +1,16 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import prisma from '../utils/db';
+import { getDb } from '../utils/mongo';
 import { logger } from '../utils/logger';
+import { User } from '../models/types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
-const generateToken = (user: { id: string; email: string; role: string }) => {
+const generateToken = (user: User) => {
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    { id: user._id?.toString(), email: user.email, role: user.role },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
   );
@@ -24,25 +25,11 @@ export const authController = {
         return res.status(400).json({ error: 'Email and password are required' });
       }
 
-      // Normalize email
       const normalizedEmail = email.toLowerCase().trim();
 
-      // Find user with only needed fields
-      const user = await prisma.user.findUnique({
-        where: { email: normalizedEmail },
-        select: {
-          id: true,
-          email: true,
-          passwordHash: true,
-          firstName: true,
-          lastName: true,
-          role: true,
-          isActive: true,
-        },
-      });
+      const user = await getDb().collection<User>('users').findOne({ email: normalizedEmail });
 
       if (!user || !user.isActive) {
-        // Use same error message to prevent user enumeration
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
@@ -51,18 +38,17 @@ export const authController = {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      // Update last login (non-blocking, don't wait for it)
-      prisma.user.update({
-        where: { id: user.id },
-        data: { lastLoginAt: new Date() },
-      }).catch(err => logger.error('Failed to update last login:', err));
+      await getDb().collection<User>('users').updateOne(
+        { _id: user._id },
+        { $set: { lastLoginAt: new Date() } }
+      );
 
       const token = generateToken(user);
 
       return res.json({
         token,
         user: {
-          id: user.id,
+          id: user._id?.toString(),
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
@@ -79,9 +65,7 @@ export const authController = {
     try {
       const { email, password, firstName, lastName, role } = req.body;
 
-      const existingUser = await prisma.user.findUnique({
-        where: { email },
-      });
+      const existingUser = await getDb().collection<User>('users').findOne({ email });
 
       if (existingUser) {
         return res.status(400).json({ error: 'User already exists' });
@@ -89,26 +73,32 @@ export const authController = {
 
       const passwordHash = await bcrypt.hash(password, 10);
 
-      const user = await prisma.user.create({
-        data: {
-          email,
-          passwordHash,
-          firstName,
-          lastName,
-          role: role || 'CLERK',
-        },
-      });
+      const newUser: User = {
+        email,
+        passwordHash,
+        firstName,
+        lastName,
+        role: role || 'CLERK',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
 
-      const token = generateToken(user);
+      const result = await getDb().collection<User>('users').insertOne(newUser);
+
+      // Add _id back to user object for response
+      newUser._id = result.insertedId;
+
+      const token = generateToken(newUser);
 
       return res.status(201).json({
         token,
         user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
+          id: newUser._id?.toString(),
+          email: newUser.email,
+          firstName: newUser.firstName,
+          lastName: newUser.lastName,
+          role: newUser.role,
         },
       });
     } catch (error) {
@@ -124,15 +114,11 @@ export const authController = {
         return res.status(401).json({ error: 'Token required' });
       }
 
-      const decoded = jwt.verify(token, JWT_SECRET) as {
-        id: string;
-        email: string;
-        role: string;
-      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      const { ObjectId } = await import('mongodb');
 
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.id },
-      });
+      const user = await getDb().collection<User>('users').findOne({ _id: new ObjectId(decoded.id) });
 
       if (!user || !user.isActive) {
         return res.status(401).json({ error: 'User not found or inactive' });

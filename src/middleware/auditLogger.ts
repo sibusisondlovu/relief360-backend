@@ -1,6 +1,8 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from './auth';
-import prisma from '../utils/db';
+import { getDb } from '../utils/mongo';
+import { AuditLog } from '../models/types';
+import { ObjectId } from 'mongodb';
 
 export const auditLogger = async (
   req: AuthRequest,
@@ -21,16 +23,15 @@ export const auditLogger = async (
     setImmediate(async () => {
       try {
         if (req.user && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
-          await prisma.auditLog.create({
-            data: {
-              userId: req.user.id,
-              action: `${req.method} ${req.path}`,
-              entityType: req.path.split('/')[2] || 'unknown',
-              entityId: req.params.id || 'unknown',
-              ipAddress: req.ip,
-              userAgent: req.get('user-agent'),
-              changes: req.body ? JSON.parse(JSON.stringify(req.body)) : null,
-            },
+          await getDb().collection<AuditLog>('audit_logs').insertOne({
+            userId: new ObjectId(req.user.id),
+            action: `${req.method} ${req.path}`,
+            entityType: req.path.split('/')[2] || 'unknown',
+            entityId: req.params.id || 'unknown',
+            ipAddress: req.ip || 'unknown',
+            userAgent: req.get('user-agent'),
+            changes: req.body ? JSON.parse(JSON.stringify(req.body)) : null,
+            createdAt: new Date(),
           });
         }
       } catch (error) {

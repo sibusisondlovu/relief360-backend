@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import { connectToMongo } from './utils/mongo';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { rateLimiter } from './middleware/rateLimiter';
@@ -68,9 +69,14 @@ app.use((_req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-app.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`);
-});
+const start = async () => {
+  await connectToMongo();
+  app.listen(PORT, () => {
+    logger.info(`Server running on port ${PORT}`);
+  });
+};
+
+start();
 
 export default app;
 
