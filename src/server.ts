@@ -25,7 +25,11 @@ const PORT = process.env.PORT || 3001;
 
 // Health check (Moved to top for debugging)
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    version: '1.0.1+cors',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Security middleware
